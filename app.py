@@ -1,4 +1,6 @@
 from flask import Flask, render_template, request, flash, redirect, session
+from flask_socketio import SocketIO, emit
+import subprocess
 from functools import wraps
 import os
 
@@ -8,6 +10,7 @@ ALLOWED_EXTENSIONS = {"csv"}
 app = Flask(__name__)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 app.secret_key = "sfjlasksecrt"
+socketio = SocketIO(app, debug=True, cors_allowed_origins="*", async_mode="eventlet")
 
 
 # Define a decorator to check if user is logged in
@@ -79,6 +82,16 @@ def run_script():
         return "Scripts executed successfully!"
     else:
         return "Invalid file format"
+
+
+@socketio.on("my_event")
+def checkping():
+    for x in range(5):
+        cmd = "ping -c 1 8.8.8.8|head -2|tail -1"
+        listing1 = subprocess.run(cmd, stdout=subprocess.PIPE, text=True, shell=True)
+        sid = request.sid
+        emit("server", {"data1": x, "data": listing1.stdout}, room=sid)
+        socketio.sleep(1)
 
 
 if __name__ == "__main__":
