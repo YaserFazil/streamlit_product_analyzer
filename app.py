@@ -57,6 +57,11 @@ def index():
     return render_template("index.html")
 
 
+@app.route("/home")
+def main():
+    return render_template("base.html")
+
+
 @app.route("/run_script", methods=["POST"])
 def run_script():
     if "database_export" not in request.files:
