@@ -10,7 +10,7 @@ ALLOWED_EXTENSIONS = {"csv"}
 app = Flask(__name__)
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 app.secret_key = "sfjlasksecrt"
-socketio = SocketIO(app, debug=True, cors_allowed_origins="*", async_mode="eventlet")
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 
 # Define a decorator to check if user is logged in
@@ -53,13 +53,8 @@ def allowed_file(filename):
 
 
 @app.route("/")
-def index():
-    return render_template("index.html")
-
-
-@app.route("/home")
 def main():
-    return render_template("base.html")
+    return render_template("index.html")
 
 
 @app.route("/run_script", methods=["POST"])
@@ -89,15 +84,25 @@ def run_script():
         return "Invalid file format"
 
 
+from users.user1 import step1
+
+
 @socketio.on("my_event")
 def checkping():
-    for x in range(5):
-        cmd = "ping -c 1 8.8.8.8|head -2|tail -1"
-        listing1 = subprocess.run(cmd, stdout=subprocess.PIPE, text=True, shell=True)
-        sid = request.sid
-        emit("server", {"data1": x, "data": listing1.stdout}, room=sid)
-        socketio.sleep(1)
+    sid = request.sid
+    step1.start_step1(sid=sid, broadcast=True)
+    # emit("server", {"data": "listing1.stdout"}, to=sid, broadcast=True)
+    # for dum in range(70):
+    #     emit("server", {"data": dum})
+    #     socketio.sleep(1)
+
+
+@socketio.on("connect")
+def handle_connect():
+    print("Client connected")
+
+    emit("server_response", {"data": f"Connected to server"})
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    socketio.run(app)
