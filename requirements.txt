@@ -8,3 +8,4 @@ git+https://github.com/YaserFazil/dynamorm.git
 streamlit==1.33.0
 marshmallow==3.21.1
 streamlit-local-storage==0.0.23
+setuptools==69.5.1
