@@ -1,11 +1,15 @@
 import streamlit as st
-from functools import wraps
-from streamlit_local_storage import LocalStorage
 from dynamodb_data import UserNew
 from datetime import datetime
+import os
 
 
-# localS = LocalStorage()
+def create_users_folder():
+    folder_name = "./users"
+    if not os.path.exists(folder_name):
+        os.makedirs(folder_name)
+        print(f"Folder '{folder_name}' created successfully.")
+
 
 
 def hide_sidebar():
@@ -50,6 +54,7 @@ def new_login_auth(user_email, password):
     return {"status": "failed"}
 
 
+create_users_folder()
 st.title("Login")
 
 # Email input
