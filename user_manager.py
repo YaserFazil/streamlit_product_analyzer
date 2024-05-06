@@ -58,7 +58,6 @@ def create_user_account(**kwargs):
         date_joined = timestamp
         updated_at = timestamp
         last_login = None
-
         # Retrun a fail msg if the user is already exist in the DB
         user_exist = check_user(kwargs["email"])
         username_exist = validate_user(kwargs["username"])
@@ -72,7 +71,6 @@ def create_user_account(**kwargs):
                 "success": False,
                 "message": f"User with the {kwargs["username"]} username is already exist!",
             }
-
         # New user data to be saved on database:
         record = UserNew(
             id=user_id,
@@ -103,7 +101,7 @@ def create_user_account(**kwargs):
         logs_file_path = os.path.join(logs_folder, "logs.log")
         # Create the logs.log file
         with open(logs_file_path, "w") as logs_file:
-            logs_file.write()
+            logs_file.write("")
 
         return {"success": True, "message": "User created successfully"}
 
