@@ -239,7 +239,9 @@ def get_user_py_files(username):
             if file.endswith(".py"):
                 file_name = os.path.splitext(file)[0]
                 custom_py_scripts.append(file_name)
-
+    # Sort the lists of filenames
+    py_steps_scripts.sort()
+    custom_py_scripts.sort()
     return {
         "user_py_steps": py_steps_scripts,
         "user_custom_py_scripts": custom_py_scripts,
