@@ -2,9 +2,6 @@ from dynamorm import DynaModel
 from marshmallow import fields
 import os
 from dotenv import load_dotenv
-import boto3
-import streamlit as st
-import pandas as pd
 
 load_dotenv()
 
@@ -35,6 +32,8 @@ class UserNew(DynaModel):
         email = fields.String(required=True)
         user_role = fields.String(required=True)
         password = fields.String(required=True)
+        requests_made = fields.Integer(default=0)
+        allowed_requests = fields.Integer(default=10)
         date_joined = fields.DateTime(format="iso")
         updated_at = fields.DateTime(format="iso")
         is_active = fields.Boolean(required=True)

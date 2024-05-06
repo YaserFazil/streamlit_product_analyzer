@@ -3,6 +3,67 @@ import pandas as pd
 import importlib
 import os
 from dynamodb_data import UserNew
+import zipfile
+import io
+import re
+from email_notification import send_email
+
+
+# Function to run user's script and capture logs
+def run_user_script(
+    username,
+    user_selected_scripts,
+    pause_after_completion=False,
+    send_email_notification=False,
+    recipient=None,
+):
+    try:
+        st.write(f"Running script for {username}")
+        user_scripts = import_user_steps(username, user_selected_scripts)
+        # Start the scripts one by one to work
+        if user_scripts is not None:
+            send_email_permission = False
+            for function_name, script_function in user_scripts.items():
+                if script_function is not None:
+                    print(f"Executing step {function_name} for user {username}")
+                    if script_function(username):
+                        send_email_permission = True
+                        if pause_after_completion:
+                            break
+                    else:
+                        return {
+                            "success": False,
+                            "msg": f"Something went wrong in function for {username}!",
+                        }
+                else:
+                    print(
+                        f"No script {function_name} module found for user {username}."
+                    )
+                    return {
+                        "success": False,
+                        "msg": f"No script {function_name} module found for user {username}.",
+                    }
+            if send_email_notification and send_email_permission:
+                send_email(
+                    "Your Products Status",
+                    "Congrats! Jeff's program finished the process you started earlier.",
+                    recipient,
+                )
+            return {
+                "success": True,
+                "msg": f"Program Completed!",
+            }
+        else:
+            print(f"No steps or scripts found for user {username}.")
+            return {
+                "success": False,
+                "msg": f"No steps or scripts found for user {username}.",
+            }
+    except Exception as e:
+        return {
+            "success": False,
+            "msg": f"Something went wrong while running the program for {username}! Error: {e}",
+        }
 
 
 def hide_sidebar():
@@ -32,24 +93,177 @@ def count_python_scripts(folder_path):
     return count
 
 
-def import_user_steps(username):
-    folder_path = f"./users/{username}"
-    num_steps = count_python_scripts(folder_path)
-    step_functions = {}
-    for step_number in range(1, num_steps + 1):
-        # Construct the module path dynamically based on username and step number
-        module_path = f"users.{username}.step{step_number}"
+# Function to check if log file exists and contains content
+def check_log_file(username):
+    log_file_path = os.path.join(f"././users/{username}/logs/logs.log")
+    return os.path.isfile(log_file_path) and os.path.getsize(log_file_path) > 0
 
-        # Import the module dynamically
-        try:
-            module = importlib.import_module(module_path)
-            # Now you can access the desired function or attribute
-            step_functions[f"start_step{step_number}"] = getattr(
-                module, f"start_step{step_number}"
-            )
-        except ImportError:
-            step_functions[f"start_step{step_number}"] = None  # Module doesn't exist
-    return step_functions
+
+def import_user_script_guide(username, file_name):
+    py_functions = {}
+
+    # Function to import python scripts from users/{username}/scripts folder
+    def import_pyfiles_from_user_dir(user_folder_path, scripts_folder_path, file_name):
+        # Check if the scripts folder exists and contains any .py files
+        if os.path.exists(scripts_folder_path) and any(
+            filename.endswith(".py") for filename in os.listdir(scripts_folder_path)
+        ):
+            if os.path.exists(os.path.join(scripts_folder_path, file_name + ".py")):
+                # Construct the module path dynamically based on username and py file name in scripts folder
+                module_path = f"users.{username}.scripts.{file_name}"
+                try:
+                    module = importlib.import_module(module_path)
+                    # Now you can access the function inside the py file or attribute
+                    py_functions[f"start_script_{file_name}_guide"] = getattr(
+                        module, f"start_script_{file_name}_guide"
+                    )
+                except Exception as e:
+                    py_functions[f"start_script_{file_name}_guide"] = (
+                        None  # Module doesn't exist
+                    )
+        # Check if the user folder exists and contains any .py files
+        if os.path.exists(user_folder_path) and any(
+            filename.endswith(".py") for filename in os.listdir(user_folder_path)
+        ):
+            if os.path.exists(os.path.join(user_folder_path, file_name + ".py")):
+                # Construct the module path dynamically based on username and py file name in scripts folder
+                module_path = f"users.{username}.{file_name}"
+                try:
+                    module = importlib.import_module(module_path)
+                    # Now you can access the function inside the py file or attribute
+                    py_functions[
+                        f"step{re.findall(r'\d+$', file_name)[0]}_instr_for_user"
+                    ] = getattr(
+                        module,
+                        f"step{re.findall(r'\d+$', file_name)[0]}_instr_for_user",
+                    )
+                except Exception as e:
+                    py_functions[
+                        f"step{re.findall(r'\d+$', file_name)[0]}_instr_for_user"
+                    ] = None  # Module doesn't exist
+
+    # Import scripts & steps guides from both user folder and scripts folder
+    user_folder_path = f"././users/{username}"
+    scripts_folder_path = f"././users/{username}/scripts"
+
+    if file_name != [] and os.path.exists(scripts_folder_path):
+        import_pyfiles_from_user_dir(user_folder_path, scripts_folder_path, file_name)
+
+    return py_functions
+
+
+def import_user_steps(username, files_names=[]):
+    py_functions = {}
+
+    # Function to import python scripts from users/{username}/scripts folder
+    def import_pyfiles_from_scripts_dir(
+        user_folder_path, scripts_folder_path, files_names
+    ):
+        for file_name in files_names:
+            if os.path.exists(os.path.join(scripts_folder_path, file_name + ".py")):
+                # Construct the module path dynamically based on username and py file name in scripts folder
+                module_path = f"users.{username}.scripts.{file_name}"
+                try:
+                    module = importlib.import_module(module_path)
+                    # Now you can access the function inside the py file or attribute
+                    py_functions[f"start_script_{file_name}"] = getattr(
+                        module, f"start_script_{file_name}"
+                    )
+                except Exception as e:
+                    py_functions[f"start_script_{file_name}"] = (
+                        None  # Module doesn't exist
+                    )
+            elif os.path.exists(os.path.join(user_folder_path, file_name + ".py")):
+                # Construct the module path dynamically based on username and py file name in scripts folder
+                module_path = f"users.{username}.{file_name}"
+                try:
+                    module = importlib.import_module(module_path)
+                    # Now you can access the function inside the py file or attribute
+                    py_functions[f"start_step{re.findall(r'\d+$', file_name)[0]}"] = (
+                        getattr(
+                            module, f"start_step{re.findall(r'\d+$', file_name)[0]}"
+                        )
+                    )
+                except Exception as e:
+                    py_functions[f"start_step{re.findall(r'\d+$', file_name)[0]}"] = (
+                        None  # Module doesn't exist
+                    )
+
+    # Function to import steps from a folder
+    def import_steps_from_folder(folder_path):
+        num_steps = count_python_scripts(folder_path)
+        for step_number in range(1, num_steps + 1):
+            # Construct the module path dynamically based on username and step number
+            module_path = f"users.{username}.step{step_number}"
+
+            # Import the module dynamically
+            try:
+                module = importlib.import_module(module_path)
+                # Now you can access the desired function or attribute
+                py_functions[f"start_step{step_number}"] = getattr(
+                    module, f"start_step{step_number}"
+                )
+            except ImportError:
+                py_functions[f"start_step{step_number}"] = None  # Module doesn't exist
+
+    # Import steps from both user folder and scripts folder
+    user_folder_path = f"././users/{username}"
+    scripts_folder_path = f"././users/{username}/scripts"
+
+    if files_names == [] and os.path.exists(user_folder_path):
+        import_steps_from_folder(user_folder_path)
+
+    if files_names != [] and os.path.exists(scripts_folder_path):
+        import_pyfiles_from_scripts_dir(
+            user_folder_path, scripts_folder_path, files_names
+        )
+
+    return py_functions
+
+
+def get_user_py_files(username):
+    custom_py_scripts = []
+    py_steps_scripts = []
+    folders = [f"././users/{username}", f"././users/{username}/scripts"]
+
+    # Finds Py steps scripts in users/{username} folder
+    if os.path.exists(folders[0]):
+        for file in os.listdir(folders[0]):
+            if file.endswith(".py"):
+                file_name = os.path.splitext(file)[0]
+                py_steps_scripts.append(file_name)
+
+    # Finds Py custom scripts in users/{username}/scripts folder
+    if os.path.exists(folders[1]):
+        for file in os.listdir(folders[1]):
+            if file.endswith(".py"):
+                file_name = os.path.splitext(file)[0]
+                custom_py_scripts.append(file_name)
+
+    return {
+        "user_py_steps": py_steps_scripts,
+        "user_custom_py_scripts": custom_py_scripts,
+    }
+
+
+def create_folders_for_user(username):
+    folder_name = f"././users/{username}/uploads"
+    if not os.path.exists(folder_name):
+        os.makedirs(folder_name)
+        print(f"Folder '{folder_name}' created successfully.")
+
+
+def zip_folder(folder_path):
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zipf:
+        for root, _, files in os.walk(folder_path):
+            for file in files:
+                zipf.write(
+                    os.path.join(root, file),
+                    os.path.relpath(os.path.join(root, file), folder_path),
+                )
+    zip_buffer.seek(0)
+    return zip_buffer
 
 
 def get_profile_dataset(pd_output=True):
@@ -61,11 +275,65 @@ def get_profile_dataset(pd_output=True):
 
 # Function to check for new files in a folder
 def check_for_new_files(username):
-    new_files = set(os.listdir(f"././users/{username}/outputs"))
+    new_files = set(os.listdir(f"././users/{username}/uploads"))
     return new_files
 
 
+def check_user_requests_limits(username):
+    user_data = list(UserNew.scan(username=username))
+    user_requests = {}
+    for user in user_data:
+        user_requests["allowed"] = user.allowed_requests
+        user_requests["made"] = user.requests_made
+    if user_requests["made"] >= user_requests["allowed"]:
+        return {"is_allowed": False}
+    return {"is_allowed": True, "requests_made": user_requests["made"]}
+
+
+# Function to remove all files in the uploads folder
+def remove_saved_files(username):
+    folder_path = f"././users/{username}/uploads"
+    for filename in os.listdir(folder_path):
+        file_path = os.path.join(folder_path, filename)
+        try:
+            if os.path.isfile(file_path):
+                os.unlink(file_path)
+        except Exception as e:
+            print(f"Error deleting {file_path}: {e}")
+
+
+if "selected_scripts_values" not in st.session_state.keys():
+    st.session_state["selected_scripts_values"] = []
+
+if "continue_clicked" not in st.session_state.keys():
+    st.session_state["continue_clicked"] = False
+
+
+if "no_selected_scripts_from_start" not in st.session_state.keys():
+    st.session_state["no_selected_scripts_from_start"] = True
+
+scripts_run = {"success": False}
+
+
+def continue_btn_clicked():
+    st.session_state["continue_clicked"] = True
+
+
+def show_continue_btn(is_pause_after_completion_required, user_selected_scripts):
+    if (
+        scripts_run["success"]
+        and is_pause_after_completion_required
+        and len(user_selected_scripts) > 0
+    ):
+        with st.form("continue_process"):
+            st.write("You can click continue if you checked your new files")
+            st.form_submit_button(
+                "Continue", type="primary", on_click=continue_btn_clicked
+            )
+
+
 def protected_page():
+    global scripts_run
     if "is_logged_in" in st.session_state and st.session_state["is_logged_in"] == True:
         user_role = st.session_state["user_role"]
         username = st.session_state["username"]
@@ -80,20 +348,58 @@ def protected_page():
                 help="Select the user to check his scripts",
                 options=usernames,
             )
+            create_folders_for_user(username)
+
             st.write(
                 f"Because you're an Admin, you selected {username}'s scripts to apply in this page"
             )
 
         else:
             hide_sidebar()
+            create_folders_for_user(username)
+        st.divider()
+        col1, col2 = st.columns(2)
+
+        with col1:
+            is_email_notification_required = st.checkbox(
+                label="Send Email notification after completion"
+            )
+
+        with col2:
+            is_pause_after_completion_required = st.checkbox(
+                label="Pause for each step completion."
+            )
+        user_py_files = get_user_py_files(username)
+        while "custom_logger" in user_py_files["user_custom_py_scripts"]:
+            user_py_files["user_custom_py_scripts"].remove("custom_logger")
+
+        if "user_select_scripts_key" not in st.session_state:
+            st.session_state["user_select_scripts_key"] = 10
+
+        user_selected_scripts = st.multiselect(
+            label="Select Scripts you want to run. (Optional)",
+            options=user_py_files["user_py_steps"]
+            + user_py_files["user_custom_py_scripts"],
+            default=st.session_state["selected_scripts_values"],
+            key=st.session_state["user_select_scripts_key"],
+        )
+        st.divider()
+
+        def reset_file_upload_section():
+            st.session_state["file_uploader_key"] += 1
+            st.rerun()
+
+        if "file_uploader_key" not in st.session_state:
+            st.session_state["file_uploader_key"] = 0
 
         files_uploaded = st.file_uploader(
-            label="Upload your CSV file/s", accept_multiple_files=True, type="csv"
+            label="Upload your CSV file/s",
+            accept_multiple_files=True,
+            type="csv",
+            key=st.session_state["file_uploader_key"],
         )
-        print("FIles uploaded: ", files_uploaded)
+
         if files_uploaded is not None and len(files_uploaded) > 0:
-            user_steps = import_user_steps(username)
-            print("Here are the user steps: ", user_steps)
             for uploaded_file in files_uploaded:
                 # Save the uploaded file to a temporary location
                 file_path = os.path.join(
@@ -107,37 +413,130 @@ def protected_page():
                 st.write("Preview:")
                 dataframe = pd.read_csv(file_path)
                 st.write(dataframe)
-            # Start the scripts one by one to work
-            if user_steps is not None:
-                for step_number, step_function in user_steps.items():
-                    if step_function is not None:
-                        print(f"Executing step {step_number} for user {username}")
-                        if not step_function(username):
-                            break
-                    else:
-                        print(
-                            f"No step {step_number} module found for user {username}."
-                        )
-            else:
-                print(f"No steps found for user {username}.")
 
-            # Check for new files every time the app runs
-            new_files = check_for_new_files(username)
-            # Display the new files and provide download buttons
-            if new_files:
-                st.write("Your New output files:")
-                for filename in new_files:
-                    with open(
-                        f"././users/{username}/outputs/{filename}", "rb"
-                    ) as file_data:
-                        download_button = st.download_button(
-                            f"Download {filename}",
-                            data=file_data,
-                            file_name=filename,
+            from user_manager import update_user_account
+
+            user_requests_allowed = check_user_requests_limits(username)
+            # Run user's script if he's allowed and capture logs
+            if user_requests_allowed["is_allowed"] == True or user_role == "admin":
+                if user_selected_scripts == []:
+                    st.session_state["no_selected_scripts_from_start"] = True
+                    user_selected_scripts = user_py_files["user_py_steps"]
+                else:
+                    st.session_state["no_selected_scripts_from_start"] = False
+                scripts_run = run_user_script(
+                    username,
+                    user_selected_scripts,
+                    is_pause_after_completion_required,
+                    is_email_notification_required,
+                    st.session_state["email"],
+                )
+                if scripts_run["success"] == True and user_role == "regular":
+                    update_user_account(
+                        st.session_state["user_id"],
+                        **{"requests_made": user_requests_allowed["requests_made"] + 1},
+                    )
+                elif scripts_run["success"] == False and user_role == "regular":
+                    st.error(scripts_run["msg"])
+
+                if scripts_run["success"] == True:
+                    # Remove the completed script from the dropdown
+                    if len(user_selected_scripts) > 0:
+                        st.session_state["user_select_scripts_key"] += 10
+                        del user_selected_scripts[0]
+                        st.session_state["selected_scripts_values"] = (
+                            user_selected_scripts
                         )
-                        if download_button:
-                            # Logic to download the file
-                            st.write(f"Downloading {filename}...")
+                    st.session_state["file_uploader_key"] += 1
+                    show_continue_btn(
+                        is_pause_after_completion_required, user_selected_scripts
+                    )
+            else:
+                st.session_state["file_uploader_key"] += 1
+                st.error("You reached your requests limits! Please contact Admin.")
+
+        if st.session_state["continue_clicked"]:
+            print("👍form submitted: ", user_selected_scripts)
+            scripts_run = run_user_script(
+                username,
+                user_selected_scripts,
+                is_pause_after_completion_required,
+                is_email_notification_required,
+                st.session_state["email"],
+            )
+            scripts_run["success"] = True
+            st.session_state["user_select_scripts_key"] += 10
+            if len(user_selected_scripts) > 0:
+                del user_selected_scripts[0]
+            st.session_state["selected_scripts_values"] = user_selected_scripts
+            st.session_state["continue_clicked"] = False
+            show_continue_btn(is_pause_after_completion_required, user_selected_scripts)
+
+        # Check for new files every time the app runs
+        new_files = check_for_new_files(username)
+        # Display the new files and provide download buttons
+        if new_files:
+            st.divider()
+            st.write(
+                "List of files you can download or keep to use it for the program:"
+            )
+            st.write(new_files)
+            user_folder = f"././users/{username}/uploads"
+            # Zip the folder
+            zip_buffer = zip_folder(user_folder)
+            col1, col2 = st.columns(2)
+            with col1:
+                # Provide a download button for the zip file
+                st.download_button(
+                    label=f"Download your files in Zip",
+                    help="Download all of your files listed above in one Zip file.",
+                    data=zip_buffer.getvalue(),
+                    file_name=f"{username}_uploads.zip",
+                    mime="application/zip",
+                )
+            with col2:
+                if st.button("Remove Saved Files"):
+                    remove_saved_files(username)
+                    reset_file_upload_section()
+                    st.success("All saved files have been removed successfully.")
+
+        log_exists = check_log_file(username)
+        if log_exists:
+            st.divider()
+            # Read log file content
+            with open(f"././users/{username}/logs/logs.log", "r") as file:
+                log_content = file.read()
+
+            # Display log content in disabled text area
+            st.text_area(
+                "Log Content For Previous running", value=log_content, disabled=True
+            )
+            st.download_button(
+                label="Download logs.log file", data=log_content, file_name="log.txt"
+            )
+        # User scripts and steps guide & instructions
+        st.divider()
+        st.title("Guide & Instructions")
+        user_selected_scripts_guide = st.selectbox(
+            label="Select Script/Step guide.",
+            options=user_py_files["user_py_steps"]
+            + user_py_files["user_custom_py_scripts"],
+        )
+        user_script_guide = import_user_script_guide(
+            username, user_selected_scripts_guide
+        )
+        # Start the scripts one by one to work
+        if user_script_guide is not None:
+            for function_name, script_function in user_script_guide.items():
+                if script_function is not None:
+                    script_function()
+                else:
+                    print(
+                        f"No script {function_name} module found for user {username}."
+                    )
+        else:
+            print(f"No steps or scripts found for user {username}.")
+
     else:
         hide_sidebar()
         st.session_state["is_logged_in"] = False

@@ -82,6 +82,8 @@ def protected_page():
             "password": st.column_config.TextColumn(
                 "User Password", help="User password to login", required=True
             ),
+            "requests_made": st.column_config.NumberColumn("Requests Made", help="Number of requests this user made through the project."),
+            "allowed_requests": st.column_config.NumberColumn("Allowed Requests", help="Enter number of allowed requests for the user", required=True),
             "email": st.column_config.TextColumn(
                 "Email", help="The user's email address", required=True
             ),
@@ -97,6 +99,8 @@ def protected_page():
                 "is_active",
                 "user_role",
                 "password",
+                "requests_made",
+                "allowed_requests",
                 "last_login",
                 "updated_at",
                 "date_joined",
@@ -114,11 +118,7 @@ def protected_page():
         if added_users:
             for user in added_users:
                 account_is_created = create_user_account(
-                    user["username"],
-                    user["email"],
-                    user["user_role"],
-                    user["password"],
-                    user["is_active"],
+                    **user
                 )
                 with st.status("Loading user creation process...", expanded=True) as status:
                     st.write("Searching for exact user...")

@@ -1,3 +1,4 @@
+import shutil
 import uuid
 from datetime import datetime
 from dynamodb_data import UserNew
@@ -24,6 +25,7 @@ def validate_user(username):
 def delete_user_account(user_id):
     try:
         user = UserNew.get(id=user_id)
+        shutil.rmtree(f"./users/{user.username}")
         user.delete()
         return {"success": True, "message": "User Account Deleted!"}
     except Exception as e:
@@ -49,44 +51,35 @@ def update_user_account(user_id, **kwargs):
         }
 
 
-def create_user_account(username, email, user_role, user_password, is_active=True):
+def create_user_account(**kwargs):
     try:
         timestamp = datetime.now().isoformat()
         user_id = str(uuid.uuid4())
-        username = username
-        email = email
-        user_role = user_role
-        password = user_password
         date_joined = timestamp
         updated_at = timestamp
-        is_active = is_active
         last_login = None
 
         # Retrun a fail msg if the user is already exist in the DB
-        user_exist = check_user(email)
-        username_exist = validate_user(username)
+        user_exist = check_user(kwargs["email"])
+        username_exist = validate_user(kwargs["username"])
         if user_exist:
             return {
                 "success": False,
-                "message": f"User with the {email} email is already exist!",
+                "message": f"User with the {kwargs["email"]} email is already exist!",
             }
         elif username_exist:
             return {
                 "success": False,
-                "message": f"User with the {username} username is already exist!",
+                "message": f"User with the {kwargs["username"]} username is already exist!",
             }
 
         # New user data to be saved on database:
         record = UserNew(
             id=user_id,
-            username=username,
-            email=email,
-            user_role=user_role,
-            password=password,
             date_joined=date_joined,
             updated_at=updated_at,
-            is_active=is_active,
             last_login=last_login,
+            **kwargs,
         )
         # Save the data gathered for new user on DynamoDB
         record.save()
@@ -94,18 +87,24 @@ def create_user_account(username, email, user_role, user_password, is_active=Tru
         root_dir = "users"  # Assuming "users" is the name of your root folder
 
         # Create the user's folder if it doesn't exist
-        user_folder = os.path.join(root_dir, username)
+        user_folder = os.path.join(root_dir, kwargs["username"])
         os.makedirs(user_folder, exist_ok=True)
 
+
         # Create subfolders for uploads, outputs, and logs inside the user's folder
+        scripts_folder = os.path.join(user_folder, "scripts")
+        os.makedirs(scripts_folder, exist_ok=True)
+
+
         uploads_folder = os.path.join(user_folder, "uploads")
         os.makedirs(uploads_folder, exist_ok=True)
-
-        outputs_folder = os.path.join(user_folder, "outputs")
-        os.makedirs(outputs_folder, exist_ok=True)
-
         logs_folder = os.path.join(user_folder, "logs")
         os.makedirs(logs_folder, exist_ok=True)
+        logs_file_path = os.path.join(logs_folder, "logs.log")
+        # Create the logs.log file
+        with open(logs_file_path, "w") as logs_file:
+            logs_file.write()
+
         return {"success": True, "message": "User created successfully"}
 
     except Exception as e:

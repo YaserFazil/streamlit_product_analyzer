@@ -11,7 +11,6 @@ def create_users_folder():
         print(f"Folder '{folder_name}' created successfully.")
 
 
-
 def hide_sidebar():
     st.markdown(
         """
@@ -79,6 +78,8 @@ if st.button("Login"):
         st.session_state["is_logged_in"] = True
         st.session_state["user_role"] = user_role
         st.session_state["username"] = username
+        st.session_state["email"] = email
+        st.session_state["user_id"] = user_id
         if user_role == "admin":
             st.switch_page("./pages/users.py")
         else:
