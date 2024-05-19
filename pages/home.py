@@ -388,6 +388,7 @@ def protected_page():
                 st.write(f"Total Size (GB): {"{:.3f}".format(images_stats["total_size_gb"])}")
                 if images_stats != []:
                     st.text_area("Images List:", value="\n".join(images_stats["images_list"]), disabled=True)
+            st.button("Empty Images Folder", on_click=empty_images_folder, kwargs={"username": username})
             zip_file_availabality = check_zip(username)
             if "is_available" in zip_file_availabality and zip_file_availabality["is_available"] == True:
                 st.markdown(f"[Download Images ZIP]({zip_file_availabality["download_link"]})", help="There is already an images zip folder saved, you can download it by clicking the link")

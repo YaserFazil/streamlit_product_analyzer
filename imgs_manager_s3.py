@@ -74,3 +74,20 @@ def zip_imgs_in_s3(username, email):
         return True
     except Exception as e:
         return False
+
+
+
+def empty_images_folder(username):
+    try:
+
+        url = f"{os.getenv("FLASK_API_ENDPOINT")}empty-folder?username={username}"
+
+        payload = {}
+        headers = {}
+
+        response = requests.request("DELETE", url, headers=headers, data=payload)
+
+        print(response.text)
+        return True
+    except Exception as e:
+        return False
