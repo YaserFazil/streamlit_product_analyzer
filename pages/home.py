@@ -400,7 +400,7 @@ def protected_page():
             zip_imgs_btn_clicked = st.button("Zip Images", help="Zip a new images.zip file. You'll get an email when the images zipping process finishes.")
             if zip_imgs_btn_clicked:
                 execute_async(zip_imgs_in_s3, username, st.session_state["email"])
-                st.info("We'll email you after images zipping process completes! :)")
+                st.info("We'll email you after the images zipping process completes! :)")
                 # with st.status("Zipping images...", expanded=True) as status:
                 #     st.write("Loading images...")
                 #     zip_imgs_in_s3(username, st.session_state["email"])
