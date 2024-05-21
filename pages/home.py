@@ -208,6 +208,11 @@ def show_continue_btn(is_pause_after_completion_required, user_selected_scripts)
                 "Continue", type="primary", on_click=continue_btn_clicked
             )
 
+import threading
+# Step 2: Create a function to handle the asynchronous execution with arguments
+def execute_async(func, *args):
+    thread = threading.Thread(target=func, args=args)
+    thread.start()
 
 def protected_page():
     global scripts_run
@@ -392,8 +397,9 @@ def protected_page():
             zip_file_availabality = check_zip(username)
             if "is_available" in zip_file_availabality and zip_file_availabality["is_available"] == True:
                 st.markdown(f"[Download Images ZIP]({zip_file_availabality["download_link"]})", help="There is already an images zip folder saved, you can download it by clicking the link")
-            zip_imgs_btn_clicked = st.button("Zip Images", on_click=zip_imgs_in_s3, kwargs={"username": username, "email": st.session_state["email"]}, help="Zip a new images.zip file. You'll get an email when the images zipping process finishes.")
+            zip_imgs_btn_clicked = st.button("Zip Images", help="Zip a new images.zip file. You'll get an email when the images zipping process finishes.")
             if zip_imgs_btn_clicked:
+                execute_async(zip_imgs_in_s3, username, st.session_state["email"])
                 st.info("We'll email you after images zipping process completes! :)")
                 # with st.status("Zipping images...", expanded=True) as status:
                 #     st.write("Loading images...")
@@ -403,6 +409,7 @@ def protected_page():
                 #     status.update(label="Images Zipped!", state="complete", expanded=False)
                 if "is_available" in zip_file_availabality and zip_file_availabality["is_available"] == True:
                     st.markdown(f"[Download images.zip file]({zip_file_availabality["download_link"]})", help="Here is your new images.zip file!")
+
 
 
         log_exists = check_log_file(username)
