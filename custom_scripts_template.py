@@ -9,6 +9,7 @@ import logging
 # Function to be trigerred when the user want to understand what does this step do
 def start_script_todo_guide():
     st.write("__Script todo Instructions:__")
+    st.video("https://www.youtube.com/watch?v=LN_8CsLRmsc")
     st.write("3 Instructions for user to understand what does this step do")
 
 

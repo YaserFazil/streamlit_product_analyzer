@@ -10,6 +10,7 @@ import logging
 # Function to be trigerred when the user want to understand what does this step do
 def step1_instr_for_user():
     st.title("Step 1 Instructions:")
+    st.video("https://www.youtube.com/watch?v=LN_8CsLRmsc")
     st.write("Instructions for user to understand what does this step do")
 
 
