@@ -31,6 +31,7 @@ class UserNew(DynaModel):
         username = fields.String(required=True)
         email = fields.String(required=True)
         user_role = fields.String(required=True)
+        memento_lib_id = fields.String(required=False)
         password = fields.String(required=True)
         requests_made = fields.Integer(default=0)
         allowed_requests = fields.Integer(default=10)

@@ -61,6 +61,7 @@ def protected_page():
             "username": st.column_config.TextColumn(
                 "Username", help="The username", max_chars=100, required=True
             ),
+            "memento_lib_id": st.column_config.TextColumn("Memento Lib ID", help="Paste user's Memento DB Library ID", max_chars=200, required=False),
             "updated_at": st.column_config.TextColumn(
                 "Updated At",
                 help="The last time when the user updated!",
@@ -96,6 +97,7 @@ def protected_page():
             column_order=(
                 "username",
                 "email",
+                "memento_lib_id",
                 "is_active",
                 "user_role",
                 "password",
