@@ -186,8 +186,7 @@ def protected_page():
     if "is_logged_in" in st.session_state and st.session_state["is_logged_in"] == True:
         user_role = st.session_state["user_role"]
         username = st.session_state["username"]
-        st.title("Home Page")
-        st.write("Welcome to SonicLister!")
+        st.title("SonicLister Administrator Panel")
         if user_role == "admin":
             usernames = []
             for user in list(get_profile_dataset(pd_output=False)):
@@ -211,7 +210,7 @@ def protected_page():
 
         with col1:
             is_email_notification_required = st.checkbox(
-                label="Send Email notification after completion"
+                label="Send an email notification after completion"
             )
 
         user_py_files = get_user_py_files(username)
@@ -257,7 +256,7 @@ def protected_page():
                 dataframe = pd.read_csv(file_path)
                 st.write(dataframe)
 
-            if st.button("GO"):
+            if st.button("Start Script"):
                 go_button_clicked()
 
             from user_manager import update_user_account
@@ -298,23 +297,21 @@ def protected_page():
         new_files = check_for_new_files(username)
         if new_files:
             st.divider()
-            st.write(
-                "List of files you can download or keep to use it for the program:"
-            )
+            st.write("List of Input/Output files available for download:")
             st.write(new_files)
             user_folder = f"././users/{username}/uploads"
             zip_buffer = zip_folder(user_folder)
             col1, col2 = st.columns(2)
             with col1:
                 st.download_button(
-                    label=f"Download your files in Zip",
+                    label=f"Download all files in a zip",
                     help="Download all of your files listed above in one Zip file.",
                     data=zip_buffer.getvalue(),
                     file_name=f"{username}_uploads.zip",
                     mime="application/zip",
                 )
             with col2:
-                if st.button("Remove Saved Files"):
+                if st.button("Remove all files"):
                     remove_saved_files(username)
                     reset_file_upload_section()
                     st.success("All saved files have been removed successfully.")
@@ -358,13 +355,11 @@ def protected_page():
                 )
             zip_imgs_btn_clicked = st.button(
                 "Zip Images",
-                help="Zip a new images.zip file. You'll get an email when the images zipping process finishes.",
+                help="Download all of your images to a .zip file. You’ll get an email when the image zipping process finishes.",
             )
             if zip_imgs_btn_clicked:
                 execute_async(zip_imgs_in_s3, username, st.session_state["email"])
-                st.info(
-                    "We'll email you after the images zipping process completes! :)"
-                )
+                st.info("We'll email you after the images zipping process completes!")
                 if (
                     "is_available" in zip_file_availabality
                     and zip_file_availabality["is_available"] == True
@@ -386,9 +381,9 @@ def protected_page():
                 label="Download logs.log file", data=log_content, file_name="log.txt"
             )
         st.divider()
-        st.title("Guide & Instructions")
+        st.title("Guides & Instructions")
         user_selected_scripts_guide = st.selectbox(
-            label="Select Script/Step guide.",
+            label="Select the script you wish to see the instructions for:",
             options=user_py_files["user_py_steps"]
             + user_py_files["user_custom_py_scripts"],
         )
